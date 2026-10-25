@@ -50,7 +50,7 @@ function portKind(nodes: BlockNode[], nodeId: string | null, handle: string | nu
 }
 
 function Editor() {
-  const { nodes, edges, onNodesChange, onEdgesChange, connect, addBlock, setFile } = useEditor();
+  const { nodes, edges, onNodesChange, onEdgesChange, connect, addBlock, removeBlock, setFile } = useEditor();
   const { screenToFlowPosition, getNodes, getEdges } = useReactFlow<BlockNode>();
   const [dropError, setDropError] = useState<string>();
 
@@ -84,6 +84,7 @@ function Editor() {
       try {
         setFile(id, 'source', await engine.addAudioFile(file), file.name);
       } catch (e) {
+        removeBlock(id);
         setDropError((e as Error).message);
       }
     }

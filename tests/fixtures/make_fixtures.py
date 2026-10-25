@@ -1,5 +1,6 @@
 import json, sys
 import numpy as np
+import audioop  # G.711 reference; on Python 3.13+ install the audioop-lts package
 from scipy import signal
 
 out_path = sys.argv[1]
@@ -31,8 +32,15 @@ for band, order, cutoff in cases:
 
 v = rng.standard_normal(256) + 1j * rng.standard_normal(256)
 X = np.fft.fft(v)
+every_byte = bytes(range(256))
+g711 = {
+    "mulaw": np.frombuffer(audioop.ulaw2lin(every_byte, 2), dtype="<i2").tolist(),
+    "alaw": np.frombuffer(audioop.alaw2lin(every_byte, 2), dtype="<i2").tolist(),
+}
+
 json.dump({
     "x": x.tolist(),
+    "g711": g711,
     "filters": filters,
     "fft": {"re": v.real.tolist(), "im": v.imag.tolist(), "outRe": X.real.tolist(), "outIm": X.imag.tolist()},
 }, open(out_path, "w"))

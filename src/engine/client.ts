@@ -1,5 +1,5 @@
 import type { AudioSignal } from '../blocks/types';
-import { parseWav } from '../dsp/wav';
+import { UnsupportedWavEncoding, parseWav } from '../dsp/wav';
 import type { Graph, NodeStatus } from './executor';
 import type { FromWorker, ToWorker } from './protocol';
 
@@ -55,17 +55,27 @@ async function decodeAudio(file: File): Promise<AudioSignal> {
   const isWav = new TextDecoder().decode(bytes.slice(0, 4)) === 'RIFF';
   try {
     if (isWav) {
-      const { sampleRate, channels } = parseWav(bytes);
-      return { kind: 'audio', sampleRate, channels };
+      try {
+        const { sampleRate, channels } = parseWav(bytes);
+        return { kind: 'audio', sampleRate, channels };
+      } catch (wavError) {
+        // Compressed WAVs (ADPCM, MP3-in-WAV, ...) may still be readable by the browser.
+        if (!(wavError instanceof UnsupportedWavEncoding)) throw wavError;
+        return await decodeWithBrowser(bytes).catch(() => Promise.reject(wavError));
+      }
     }
-    const context = new OfflineAudioContext(1, 1, 44100);
-    const buffer = await context.decodeAudioData(bytes);
-    const channels = Array.from({ length: buffer.numberOfChannels }, (_, c) => buffer.getChannelData(c).slice());
-    return { kind: 'audio', sampleRate: buffer.sampleRate, channels };
+    return await decodeWithBrowser(bytes);
   } catch (e) {
-    const reason = e instanceof DOMException && !isWav ? 'unsupported format' : (e as Error).message;
+    const reason = e instanceof DOMException ? 'unsupported format' : (e as Error).message;
     throw new Error(`Could not decode "${file.name}": ${reason}`);
   }
+}
+
+async function decodeWithBrowser(bytes: ArrayBuffer): Promise<AudioSignal> {
+  // decodeAudioData detaches its input, so give it a copy.
+  const buffer = await new OfflineAudioContext(1, 1, 44100).decodeAudioData(bytes.slice(0));
+  const channels = Array.from({ length: buffer.numberOfChannels }, (_, c) => buffer.getChannelData(c).slice());
+  return { kind: 'audio', sampleRate: buffer.sampleRate, channels };
 }
 
 export const engine = new EngineClient();
