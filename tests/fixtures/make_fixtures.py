@@ -15,11 +15,18 @@ cases = [
 filters = []
 for band, order, cutoff in cases:
     sos = signal.butter(order, cutoff, btype=band, fs=fs, output="sos")
+    z, p, k = signal.butter(order, cutoff, btype=band, fs=fs, output="zpk")
     filters.append({
         "band": band, "order": order, "cutoff": cutoff, "fs": fs,
         "y": signal.sosfilt(sos, x).tolist(),
         "freqs": [50, 300, 1000, 2000, 3900],
         "gains": [float(abs(signal.sosfreqz(sos, worN=[f], fs=fs)[1][0])) for f in [50, 300, 1000, 2000, 3900]],
+        "phases": [float(np.angle(signal.sosfreqz(sos, worN=[f], fs=fs)[1][0])) for f in [50, 300, 1000, 2000, 3900]],
+        "zpk": {
+            "z": [[float(c.real), float(c.imag)] for c in z],
+            "p": [[float(c.real), float(c.imag)] for c in p],
+            "k": float(k),
+        },
     })
 
 v = rng.standard_normal(256) + 1j * rng.standard_normal(256)
@@ -29,4 +36,4 @@ json.dump({
     "filters": filters,
     "fft": {"re": v.real.tolist(), "im": v.imag.tolist(), "outRe": X.real.tolist(), "outIm": X.imag.tolist()},
 }, open(out_path, "w"))
-print("ok", scipy_version := __import__("scipy").__version__)
+print("ok", __import__("scipy").__version__)

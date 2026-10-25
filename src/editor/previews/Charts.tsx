@@ -5,7 +5,8 @@ import { UPlotChart, axis, type ChartTheme } from './UPlotChart';
 
 type Of<K extends Preview['kind']> = Extract<Preview, { kind: K }>;
 
-const hz = (f: number) => (f >= 1000 ? `${+(f / 1000).toFixed(2)}k` : `${+f.toFixed(1)}`);
+// Log axes pass null for unlabelled minor ticks.
+const hz = (f: number | null) => (f === null ? '' : f >= 1000 ? `${+(f / 1000).toFixed(2)}k` : `${+f.toFixed(1)}`);
 
 export function WaveformChart({ preview }: { preview: Of<'waveform'> }) {
   const data = useMemo<uPlot.AlignedData>(

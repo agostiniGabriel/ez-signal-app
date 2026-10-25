@@ -9,6 +9,7 @@ interface FieldProps<S extends ParamSpec> {
   value: ParamValue;
   error?: string;
   fileNames?: Record<string, string>;
+  sharedFileName?: string;
 }
 
 export function ParamField(props: FieldProps<ParamSpec>) {
@@ -118,13 +119,18 @@ function FileInput({
   spec,
   value,
   fileNames,
+  sharedFileName,
   id,
   onLocalError,
 }: FieldProps<ParamSpec> & { id: string; onLocalError(e?: string): void }) {
   const setFile = useEditor((s) => s.setFile);
   const input = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
-  const name = value ? (fileNames?.[String(value)] ?? 'Unknown file') : 'No file chosen';
+  const name = value
+    ? (fileNames?.[String(value)] ?? 'Unknown file')
+    : sharedFileName
+      ? `Choose ${sharedFileName}`
+      : 'No file chosen';
 
   const choose = async (file: File | undefined) => {
     if (!file) return;

@@ -11,6 +11,12 @@ npm test         # DSP checked against SciPy/NumPy reference output
 npm run build    # static site in dist/, host anywhere
 ```
 
+## Deploying
+
+`npm run build` produces a fully static site in `dist/` (relative paths, no server needed).
+`.github/workflows/deploy.yml` builds, tests and publishes it to GitHub Pages on every push to `main`
+(enable Pages with source "GitHub Actions" in the repository settings).
+
 ## How it works
 
 - `src/dsp/` — dependency-free DSP: FFT, Butterworth design (zpk → second-order sections,

@@ -17,7 +17,8 @@ import {
 export type Sos = number[][];
 export type FilterBand = 'lowpass' | 'highpass' | 'bandpass';
 
-interface Zpk {
+/** Zeros, poles and gain of a transfer function. */
+export interface Zpk {
   z: Complex[];
   p: Complex[];
   k: number;
@@ -118,11 +119,15 @@ function toSos({ z, p, k }: Zpk): Sos {
 }
 
 /**
- * Digital Butterworth filter design, equivalent to
- * `scipy.signal.butter(order, cutoff, btype, fs=fs, output='sos')`.
- * Cutoffs are in Hz.
+ * Digital Butterworth filter design as second-order sections, equivalent to
+ * `scipy.signal.butter(order, cutoff, btype, fs=fs, output='sos')`. Cutoffs are in Hz.
  */
 export function butter(order: number, cutoff: number | [number, number], band: FilterBand, fs: number): Sos {
+  return toSos(butterZpk(order, cutoff, band, fs));
+}
+
+/** Digital Butterworth zeros/poles/gain, equivalent to `scipy.signal.butter(..., output='zpk')`. */
+export function butterZpk(order: number, cutoff: number | [number, number], band: FilterBand, fs: number): Zpk {
   if (!Number.isInteger(order) || order < 1) throw new Error('Filter order must be a positive integer');
   const nyquist = fs / 2;
   const cutoffs = Array.isArray(cutoff) ? cutoff : [cutoff];
@@ -145,7 +150,7 @@ export function butter(order: number, cutoff: number | [number, number], band: F
     const wo = warp(cutoffs[0]);
     analog = band === 'lowpass' ? toLowpass(prototype(order), wo) : toHighpass(prototype(order), wo);
   }
-  return toSos(bilinear(analog, fs));
+  return bilinear(analog, fs);
 }
 
 /**
@@ -168,13 +173,23 @@ export function sosfilt(sos: Sos, x: Float32Array): Float32Array {
   return Float32Array.from(y);
 }
 
-/** Magnitude response |H(e^jw)| of an SOS filter at the given frequency (Hz). */
-export function sosGain(sos: Sos, frequency: number, fs: number): number {
+/** Complex frequency response H(e^jω) of an SOS filter at the given frequency (Hz). */
+export function sosResponse(sos: Sos, frequency: number, fs: number): Complex {
   const zInv = expj((-2 * Math.PI * frequency) / fs);
   const zInv2 = mul(zInv, zInv);
-  return sos.reduce((gain, [b0, b1, b2, a0, a1, a2]) => {
+  return sos.reduce((h, [b0, b1, b2, a0, a1, a2]) => {
     const num = add(add(complex(b0), scale(zInv, b1)), scale(zInv2, b2));
     const den = add(add(complex(a0), scale(zInv, a1)), scale(zInv2, a2));
-    return gain * abs(div(num, den));
-  }, 1);
+    return mul(h, div(num, den));
+  }, complex(1));
+}
+
+/** Magnitude response |H(e^jω)| of an SOS filter at the given frequency (Hz). */
+export const sosGain = (sos: Sos, frequency: number, fs: number): number => abs(sosResponse(sos, frequency, fs));
+
+/** First `length` samples of the filter's response to a unit impulse. */
+export function impulseResponse(sos: Sos, length: number): Float32Array {
+  const impulse = new Float32Array(length);
+  impulse[0] = 1;
+  return sosfilt(sos, impulse);
 }

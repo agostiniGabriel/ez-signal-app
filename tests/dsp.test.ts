@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { butter, sosfilt, sosGain, type FilterBand } from '../src/dsp/butterworth';
+import { butter, butterZpk, sosfilt, sosGain, sosResponse, type FilterBand } from '../src/dsp/butterworth';
 import { fft } from '../src/dsp/fft';
 import { averagedSpectrum, spectrogram } from '../src/dsp/spectrum';
 import { encodeWav, parseWav } from '../src/dsp/wav';
@@ -40,6 +40,22 @@ describe('butterworth', () => {
       c.freqs.forEach((f: number, i: number) => {
         expect(sosGain(sos, f, c.fs)).toBeCloseTo(c.gains[i], 6);
       });
+    });
+
+    it(`${label}: phase response matches scipy`, () => {
+      c.freqs.forEach((f: number, i: number) => {
+        const h = sosResponse(sos, f, c.fs);
+        expect(Math.atan2(h.im, h.re)).toBeCloseTo(c.phases[i], 6);
+      });
+    });
+
+    it(`${label}: zeros, poles and gain match scipy (output='zpk')`, () => {
+      const { z, p, k } = butterZpk(c.order, c.cutoff, c.band as FilterBand, c.fs);
+      const sorted = (roots: number[][]) =>
+        [...roots].sort((a, b) => a[0] - b[0] || a[1] - b[1]).flat();
+      expect(maxAbsDiff(sorted(z.map((r) => [r.re, r.im])), sorted(c.zpk.z))).toBeLessThan(1e-9);
+      expect(maxAbsDiff(sorted(p.map((r) => [r.re, r.im])), sorted(c.zpk.p))).toBeLessThan(1e-9);
+      expect(k).toBeCloseTo(c.zpk.k, 12);
     });
 
     it(`${label}: filtered output matches scipy.signal.sosfilt`, () => {

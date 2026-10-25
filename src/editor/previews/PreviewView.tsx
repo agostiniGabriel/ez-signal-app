@@ -1,6 +1,7 @@
 import type { Preview } from '../../blocks/types';
 import { AudioPlayer } from './AudioPlayer';
 import { SpectrumChart, WaveformChart } from './Charts';
+import { FilterInspector } from './FilterInspector';
 import { SpectrogramView } from './SpectrogramView';
 
 export function PreviewView({ preview }: { preview: Preview }) {
@@ -24,5 +25,7 @@ export function PreviewView({ preview }: { preview: Preview }) {
       return <SpectrogramView preview={preview} />;
     case 'audio':
       return <AudioPlayer preview={preview} />;
+    case 'filter':
+      return <FilterInspector preview={preview} />;
   }
 }

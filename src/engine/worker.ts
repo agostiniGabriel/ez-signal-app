@@ -19,6 +19,10 @@ function transferables(preview: Preview | undefined): ArrayBuffer[] {
       return [preview.db.buffer as ArrayBuffer];
     case 'audio':
       return preview.channels.map((c) => c.buffer as ArrayBuffer);
+    case 'filter':
+      return [preview.frequencies, preview.magnitudeDb, preview.phaseDeg, preview.zeros, preview.poles, preview.impulse].map(
+        (a) => a.buffer as ArrayBuffer,
+      );
     default:
       return [];
   }

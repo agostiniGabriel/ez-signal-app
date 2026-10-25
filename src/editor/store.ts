@@ -22,6 +22,8 @@ export interface BlockNodeData extends Record<string, unknown> {
   params: Params;
   /** Display names of loaded files, keyed by source id. */
   fileNames?: Record<string, string>;
+  /** Name of the file a shared graph was built with; the recipient has to choose it again. */
+  sharedFileName?: string;
 }
 
 export type BlockNode = Node<BlockNodeData, 'block'>;
@@ -38,6 +40,7 @@ interface EditorState {
   setParam(id: string, key: string, value: ParamValue): void;
   setFile(id: string, key: string, sourceId: string, name: string): void;
   setStatus(id: string, status: NodeStatus): void;
+  loadGraph(nodes: BlockNode[], edges: Edge[]): void;
   reset(): void;
 }
 
@@ -123,6 +126,10 @@ export const useEditor = create<EditorState>()(
             ? { ...status, preview: previous?.preview, elapsedMs: previous?.elapsedMs }
             : { ...status, preview: status.preview ?? previous?.preview };
         set({ statuses: { ...get().statuses, [id]: next } });
+      },
+
+      loadGraph(nodes, edges) {
+        set({ nodes, edges, statuses: {} });
       },
 
       reset() {

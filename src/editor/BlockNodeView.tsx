@@ -14,7 +14,7 @@ export const BlockNodeView = memo(function BlockNodeView({ id, data, selected }:
   const removeBlock = useEditor((s) => s.removeBlock);
   const { values, errors } = validateParams(def, data.params);
   const ports = Math.max(def.inputs.length, def.outputs.length);
-  const wide = def.category === 'analysis';
+  const wide = def.wide;
 
   return (
     <div className={`block block--${def.category}${wide ? ' block--wide' : ''}${selected ? ' block--selected' : ''}`}>
@@ -63,6 +63,7 @@ export const BlockNodeView = memo(function BlockNodeView({ id, data, selected }:
                 value={values[spec.key]}
                 error={errors[spec.key]}
                 fileNames={data.fileNames}
+                sharedFileName={data.sharedFileName}
               />
             ))}
         </div>

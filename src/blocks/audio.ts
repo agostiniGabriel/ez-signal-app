@@ -1,4 +1,4 @@
-import { butter, sosfilt, type FilterBand } from '../dsp/butterworth';
+import { butterZpk, butter, impulseResponse, sosfilt, sosResponse, type FilterBand, type Sos, type Zpk } from '../dsp/butterworth';
 import { generate, type Waveform } from '../dsp/generate';
 import { averagedSpectrum, spectrogram, type WindowType } from '../dsp/spectrum';
 import type { AudioSignal, BlockDefinition, Preview, Signal } from './types';
@@ -181,6 +181,7 @@ export const filter: BlockDefinition = {
   type: 'butterworth',
   title: 'Butterworth filter',
   category: 'processing',
+  wide: true,
   description: 'Maximally flat IIR filter, applied as cascaded second-order sections (like scipy.signal.butter + sosfilt).',
   inputs: [audioPort()],
   outputs: [audioPort()],
@@ -230,16 +231,63 @@ export const filter: BlockDefinition = {
     const band = params.band as FilterBand;
     const cutoff: number | [number, number] =
       band === 'bandpass' ? [Number(params.lowCutoff), Number(params.highCutoff)] : Number(params.cutoff);
-    const sos = butter(Number(params.order), cutoff, band, input.sampleRate);
+    const order = Number(params.order);
+    const sos = butter(order, cutoff, band, input.sampleRate);
     const channels = input.channels.map((c) => sosfilt(sos, c));
-    return { outputs: { audio: { kind: 'audio', sampleRate: input.sampleRate, channels } } };
+    return {
+      outputs: { audio: { kind: 'audio', sampleRate: input.sampleRate, channels } },
+      preview: inspectFilter(sos, butterZpk(order, cutoff, band, input.sampleRate), cutoff, input.sampleRate),
+    };
   },
 };
+
+/** Everything the filter inspector shows: frequency/phase response, pole-zero map and impulse response. */
+function inspectFilter(sos: Sos, zpk: Zpk, cutoff: number | [number, number], sampleRate: number): Preview {
+  const points = 600;
+  const nyquist = sampleRate / 2;
+  const lowest = Math.max(1, nyquist / 10000);
+  const frequencies = new Float32Array(points);
+  const magnitudeDb = new Float32Array(points);
+  const phaseDeg = new Float32Array(points);
+  let previous = 0;
+  let unwrap = 0;
+  for (let i = 0; i < points; i++) {
+    const f = lowest * (nyquist / lowest) ** (i / (points - 1));
+    const h = sosResponse(sos, Math.min(f, nyquist * 0.9999), sampleRate);
+    const phase = (Math.atan2(h.im, h.re) * 180) / Math.PI;
+    // Remove 360° jumps so the phase reads as a continuous curve.
+    if (i > 0) unwrap -= 360 * Math.round((phase + unwrap - previous) / 360);
+    previous = phase + unwrap;
+    frequencies[i] = f;
+    magnitudeDb[i] = Math.max(20 * Math.log10(Math.hypot(h.re, h.im)), -200);
+    phaseDeg[i] = previous;
+  }
+
+  // Keep the impulse response until it has decayed to 0.01% of its peak.
+  const full = impulseResponse(sos, 4096);
+  const peak = full.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+  let last = 0;
+  for (let n = 0; n < full.length; n++) if (Math.abs(full[n]) > peak * 1e-4) last = n;
+
+  const interleave = (roots: Zpk['z']) => Float32Array.from(roots.flatMap((r) => [r.re, r.im]));
+  return {
+    kind: 'filter',
+    sampleRate,
+    cutoffs: Array.isArray(cutoff) ? cutoff : [cutoff],
+    frequencies,
+    magnitudeDb,
+    phaseDeg,
+    zeros: interleave(zpk.z),
+    poles: interleave(zpk.p),
+    impulse: full.slice(0, Math.max(32, last + 1)),
+  };
+}
 
 export const timePlot: BlockDefinition = {
   type: 'time-plot',
   title: 'Time domain plot',
   category: 'analysis',
+  wide: true,
   description: 'Amplitude over time, for the whole signal or a chosen interval.',
   inputs: [audioPort()],
   outputs: [],
@@ -279,6 +327,7 @@ export const spectrumPlot: BlockDefinition = {
   type: 'spectrum',
   title: 'Frequency spectrum',
   category: 'analysis',
+  wide: true,
   description: "Amplitude per frequency via the FFT, averaged over overlapping frames (Welch's method).",
   inputs: [audioPort()],
   outputs: [],
@@ -348,6 +397,7 @@ export const spectrogramPlot: BlockDefinition = {
   type: 'spectrogram',
   title: 'Spectrogram',
   category: 'analysis',
+  wide: true,
   description: 'How the spectrum changes over time (short-time Fourier transform with a Hann window).',
   inputs: [audioPort()],
   outputs: [],

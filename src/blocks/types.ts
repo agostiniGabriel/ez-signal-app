@@ -92,7 +92,21 @@ export type Preview =
       maxFrequency: number;
       dynamicRange: number;
     }
-  | { kind: 'audio'; sampleRate: number; channels: Float32Array[] };
+  | { kind: 'audio'; sampleRate: number; channels: Float32Array[] }
+  | {
+      kind: 'filter';
+      sampleRate: number;
+      cutoffs: number[];
+      /** Log-spaced frequency grid (Hz) with the response at each point. */
+      frequencies: Float32Array;
+      magnitudeDb: Float32Array;
+      /** Unwrapped phase in degrees. */
+      phaseDeg: Float32Array;
+      /** Interleaved [re, im, re, im, ...] in the z-plane. */
+      zeros: Float32Array;
+      poles: Float32Array;
+      impulse: Float32Array;
+    };
 
 export interface Source {
   name: string;
@@ -117,6 +131,8 @@ export interface BlockDefinition {
   title: string;
   category: BlockCategory;
   description: string;
+  /** Wider block in the editor, for blocks with plots. */
+  wide?: boolean;
   inputs: PortSpec[];
   outputs: PortSpec[];
   params: ParamSpec[];

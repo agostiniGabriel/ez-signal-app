@@ -16,6 +16,7 @@ import { engine } from './engine/client';
 import { BlockNodeView } from './editor/BlockNodeView';
 import { BLOCK_MIME, Palette } from './editor/Palette';
 import { toGraph, useEditor, type BlockNode } from './editor/store';
+import { Toolbar } from './editor/Toolbar';
 
 const nodeTypes = { block: BlockNodeView };
 
@@ -119,7 +120,6 @@ function Editor() {
 
 export function App() {
   useAutoRun();
-  const reset = useEditor((s) => s.reset);
 
   return (
     <ReactFlowProvider>
@@ -128,9 +128,7 @@ export function App() {
           <h1>
             EZ Signal <span>signal processing chains in the browser</span>
           </h1>
-          <button type="button" className="button" onClick={() => confirm('Replace the canvas with the example chain?') && reset()}>
-            Load example
-          </button>
+          <Toolbar />
         </header>
         <Palette />
         <Editor />
