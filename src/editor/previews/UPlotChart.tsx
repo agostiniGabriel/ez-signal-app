@@ -47,5 +47,6 @@ export function UPlotChart({
     return () => plot.destroy();
   }, [data, build]);
 
-  return <div ref={ref} className="chart nodrag nowheel" />;
+  // nodrag keeps drag-to-zoom on the chart; wheel/pinch still goes to the canvas (uPlot doesn't use it).
+  return <div ref={ref} className="chart nodrag" />;
 }

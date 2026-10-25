@@ -44,6 +44,28 @@ function useAutoRun() {
   }, []);
 }
 
+/**
+ * Trackpad pinch arrives as ctrl+wheel (Safari: gesture events). Over the canvas React Flow turns it into
+ * canvas zoom; anywhere else the browser would zoom the whole page, sidebar included. Keyboard zoom
+ * (Cmd/Ctrl +/-) is left alone for accessibility.
+ */
+function useBlockPagePinchZoom() {
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) e.preventDefault();
+    };
+    const onGesture = (e: Event) => e.preventDefault();
+    document.addEventListener('wheel', onWheel, { passive: false });
+    document.addEventListener('gesturestart', onGesture);
+    document.addEventListener('gesturechange', onGesture);
+    return () => {
+      document.removeEventListener('wheel', onWheel);
+      document.removeEventListener('gesturestart', onGesture);
+      document.removeEventListener('gesturechange', onGesture);
+    };
+  }, []);
+}
+
 function portKind(nodes: BlockNode[], nodeId: string | null, handle: string | null | undefined, side: 'inputs' | 'outputs') {
   const node = nodes.find((n) => n.id === nodeId);
   return node && getBlock(node.data.blockType)[side].find((p) => p.id === handle)?.kind;
@@ -121,6 +143,7 @@ function Editor() {
 
 export function App() {
   useAutoRun();
+  useBlockPagePinchZoom();
 
   return (
     <ReactFlowProvider>
