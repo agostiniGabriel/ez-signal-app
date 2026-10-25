@@ -1,6 +1,7 @@
 import type { AudioSignal } from '../blocks/types';
 import { UnsupportedWavEncoding, parseWav } from '../dsp/wav';
 import type { Graph, NodeStatus } from './executor';
+import { loadFile, pruneFiles, saveFile } from './fileStore';
 import type { FromWorker, ToWorker } from './protocol';
 
 type StatusListener = (nodeId: string, status: NodeStatus) => void;
@@ -26,19 +27,43 @@ class EngineClient {
     return () => this.listeners.delete(listener);
   }
 
+  /** Resolves once files saved from a previous visit have been handed to the worker. */
+  private restored: Promise<unknown> = Promise.resolve();
+
   run(graph: Graph) {
-    this.post({ type: 'run', runId: ++this.runId, graph });
+    const runId = ++this.runId;
+    // Wait for restored files, so blocks using them don't briefly report a missing file.
+    this.restored.then(() => runId === this.runId && this.post({ type: 'run', runId, graph }));
   }
 
   /** Decodes an audio file and hands it to the worker; returns the source id to store in the block's params. */
   async addAudioFile(file: File): Promise<string> {
-    const signal = await decodeAudio(file);
     const id = crypto.randomUUID();
+    await this.loadSource(id, file);
+    await saveFile(id, file);
+    return id;
+  }
+
+  /**
+   * Reloads files the editor still references from browser storage, and deletes stored files nothing
+   * references any more. Files that can't be restored leave their blocks asking for the file again.
+   */
+  restore(sourceIds: string[]) {
+    const keep = new Set(sourceIds);
+    this.restored = Promise.all(
+      [...keep].map(async (id) => {
+        const file = await loadFile(id);
+        if (file) await this.loadSource(id, file).catch(() => undefined);
+      }),
+    ).then(() => pruneFiles(keep));
+  }
+
+  private async loadSource(id: string, file: File) {
+    const signal = await decodeAudio(file);
     this.post(
       { type: 'addSource', id, source: { name: file.name, signal } },
       signal.channels.map((c) => c.buffer as ArrayBuffer),
     );
-    return id;
   }
 
   private post(message: ToWorker, transfer: Transferable[] = []) {

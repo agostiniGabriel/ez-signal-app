@@ -1,5 +1,5 @@
 import { getBlock } from '../blocks/registry';
-import type { Params, Preview, Signal, Source } from '../blocks/types';
+import { NeedsInput, type Params, type Preview, type Signal, type Source } from '../blocks/types';
 import { validateParams } from '../blocks/validate';
 
 export interface GraphNode {
@@ -104,8 +104,10 @@ export class Executor {
     const { values, errors } = validateParams(def, node.params);
     const firstError = Object.entries(errors)[0];
     if (firstError) {
-      const label = def.params.find((p) => p.key === firstError[0])?.label ?? firstError[0];
-      report(node.id, { state: 'error', message: `${label}: ${firstError[1]}` });
+      const spec = def.params.find((p) => p.key === firstError[0]);
+      // A file not chosen yet is a step still to do, not a mistake.
+      const state = spec?.type === 'file' ? 'waiting' : 'error';
+      report(node.id, { state, message: `${spec?.label ?? firstError[0]}: ${firstError[1]}` });
       return;
     }
 
@@ -143,7 +145,7 @@ export class Executor {
       return key;
     } catch (e) {
       this.cache.delete(node.id);
-      report(node.id, { state: 'error', message: (e as Error).message });
+      report(node.id, { state: e instanceof NeedsInput ? 'waiting' : 'error', message: (e as Error).message });
     }
   }
 }

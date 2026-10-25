@@ -55,6 +55,19 @@ describe('executor', () => {
     expect(unconnected.statuses.filter).toMatchObject({ state: 'waiting', message: 'Connect the Audio input' });
   });
 
+  it('treats a missing or unloaded file as waiting for the user, not an error', async () => {
+    const files: Graph = {
+      nodes: [
+        { id: 'empty', type: 'audio-file', params: { source: '' } },
+        { id: 'gone', type: 'audio-file', params: { source: 'not-loaded' } },
+      ],
+      edges: [],
+    };
+    const { statuses } = await run(new Executor(), files);
+    expect(statuses.empty).toMatchObject({ state: 'waiting', message: 'File: Choose a file' });
+    expect(statuses.gone).toMatchObject({ state: 'waiting', message: expect.stringMatching(/Choose it again/) });
+  });
+
   it('flags cycles', async () => {
     const g = graph(1000);
     g.edges.push({ source: 'filter', sourceHandle: 'audio', target: 'gen', targetHandle: 'audio' });

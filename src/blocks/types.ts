@@ -119,6 +119,9 @@ export interface BlockContext {
   getSource(id: string): Source | undefined;
 }
 
+/** Thrown by a block that can't run until the user provides something (shown as waiting, not as an error). */
+export class NeedsInput extends Error {}
+
 export interface BlockResult {
   outputs?: Record<string, Signal>;
   preview?: Preview;

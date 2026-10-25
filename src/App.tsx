@@ -24,6 +24,10 @@ const nodeTypes = { block: BlockNodeView };
 function useAutoRun() {
   useEffect(() => {
     const unsubscribe = engine.onStatus((id, status) => useEditor.getState().setStatus(id, status));
+    // Bring back files loaded on a previous visit; the first run waits for them.
+    engine.restore(
+      useEditor.getState().nodes.flatMap((n) => (typeof n.data.params.source === 'string' && n.data.params.source ? [n.data.params.source] : [])),
+    );
     let last = '';
     let timer: ReturnType<typeof setTimeout> | undefined;
     const schedule = ({ nodes, edges }: { nodes: BlockNode[]; edges: Edge[] }) => {

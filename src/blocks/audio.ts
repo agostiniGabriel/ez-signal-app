@@ -1,7 +1,7 @@
 import { butterZpk, butter, impulseResponse, sosfilt, sosResponse, type FilterBand, type Sos, type Zpk } from '../dsp/butterworth';
 import { generate, type Waveform } from '../dsp/generate';
 import { averagedSpectrum, spectrogram, type WindowType } from '../dsp/spectrum';
-import type { AudioSignal, BlockDefinition, Preview, Signal } from './types';
+import { NeedsInput, type AudioSignal, type BlockDefinition, type Preview, type Signal } from './types';
 
 const audioPort = (id = 'audio', label = 'Audio') => ({ id, label, kind: 'audio' as const });
 
@@ -68,7 +68,8 @@ export const audioFile: BlockDefinition = {
   params: [{ key: 'source', label: 'File', type: 'file', default: '', accept: 'audio/*,.wav' }],
   run({ params, getSource }) {
     const source = getSource(String(params.source));
-    if (!source) throw new Error('File is no longer loaded, choose it again');
+    // Files are restored from browser storage on load; this only happens if that storage was cleared.
+    if (!source) throw new NeedsInput('This file is no longer saved in this browser. Choose it again.');
     const signal = expectAudio(source.signal);
     return { outputs: { audio: signal }, preview: { kind: 'info', rows: describe(signal) } };
   },
